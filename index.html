@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Masterclass — L'Art du Prompt</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink: #0f172a;
+            --ink-soft: #334155;
+            --surface: #f8fafc;
+            --blue-primary: #2563eb;
+            --radius-xl: 24px;
+            --slide-transition: 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            overflow: hidden;
+            background-color: var(--surface);
+            color: var(--ink);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Background Ambiance */
+        .blob {
+            position: fixed;
+            filter: blur(140px);
+            z-index: 0;
+            opacity: 0.4;
+            animation: float 20s infinite ease-in-out;
+            pointer-events: none;
+        }
+        .blob-1 { top: -10%; left: -5%; width: 50vw; height: 50vw; background: radial-gradient(circle, #bfdbfe 0%, #e0e7ff 100%); }
+        .blob-2 { bottom: -10%; right: -5%; width: 60vw; height: 60vw; background: radial-gradient(circle, #c7d2fe 0%, #fbcfe8 100%); animation-delay: -10s; }
+        
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(2%, 3%); }
+        }
+
+        .bg-grid {
+            position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.3;
+            background-size: 64px 64px;
+            background-image: linear-gradient(to right, rgba(99, 102, 241, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(99, 102, 241, 0.04) 1px, transparent 1px);
+        }
+
+        /* Slide Engine */
+        .slide {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            opacity: 0; pointer-events: none;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            padding: 4rem; z-index: 1;
+            transition: opacity var(--slide-transition), transform var(--slide-transition);
+            transform: translateY(16px);
+        }
+        .slide.active { opacity: 1; pointer-events: auto; transform: translateY(0); z-index: 2; }
+
+        /* Stagger Animations */
+        .anim { opacity: 0; transform: translateY(24px); transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+        .active .anim { opacity: 1; transform: translateY(0); }
+        .d1 { transition-delay: 0.1s; } .d2 { transition-delay: 0.2s; } .d3 { transition-delay: 0.3s; }
+        .d4 { transition-delay: 0.4s; } .d5 { transition-delay: 0.5s; }
+
+        /* Pure Glassmorphism - NO BORDERS */
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+            border: none !important; outline: none !important;
+            box-shadow: 0 10px 40px -10px rgba(15, 23, 42, 0.06);
+            border-radius: var(--radius-xl);
+        }
+        .glass-strong {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px);
+            border: none !important; outline: none !important;
+            box-shadow: 0 20px 50px -15px rgba(15, 23, 42, 0.1);
+            border-radius: var(--radius-xl);
+        }
+        .glass-dark {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px);
+            border: none !important; outline: none !important; color: white;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.4);
+            border-radius: var(--radius-xl);
+        }
+
+        /* Navigation */
+        .nav-btn {
+            width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; background: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); color: var(--ink); transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
+        .nav-btn:active { transform: translateY(0); }
+        .progress-track { height: 4px; background: rgba(0,0,0,0.05); }
+        .progress-fill { height: 100%; background: var(--blue-primary); transition: width 0.4s ease; }
+
+        /* Typography & Utils */
+        .badge {
+            display: inline-flex; align-items: center; gap: 8px; padding: 6px 16px;
+            border-radius: 99px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+            background: white; color: var(--ink); box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: none !important;
+        }
+        .text-gradient {
+            background: linear-gradient(135deg, #2563eb, #8b5cf6);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Chat bubbles */
+        .chat-bubble { padding: 14px 20px; border-radius: 20px; font-size: 0.9rem; max-width: 85%; margin-bottom: 12px; border: none !important; box-shadow: 0 4px 15px rgba(0,0,0,0.03); opacity: 0; transform: translateY(10px); animation: pop 0.3s forwards ease; }
+        .chat-user { background: var(--blue-primary); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+        .chat-ai { background: white; color: var(--ink); align-self: flex-start; border-bottom-left-radius: 4px; }
+        .chat-ai-bad { background: #fef2f2; color: #991b1b; }
+        @keyframes pop { to { opacity: 1; transform: translateY(0); } }
+
+        /* Scan Line */
+        .scanner-line { position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: #3b82f6; box-shadow: 0 0 15px 3px rgba(59, 130, 246, 0.4); opacity: 0; pointer-events: none; z-index: 10; }
+        
+        /* Fade Utils */
+        .fade-in { opacity: 1 !important; visibility: visible !important; transition: opacity 0.5s ease; }
+        .fade-out { opacity: 0 !important; visibility: hidden !important; transition: opacity 0.5s ease; }
+
+        /* Interactive Elements */
+        .vf-btn { transition: all 0.3s ease; border: none !important; }
+        .vf-btn.selected-correct { background-color: #10b981 !important; color: white !important; box-shadow: 0 0 20px rgba(16, 185, 129, 0.4) !important; }
+        .vf-btn.selected-wrong { background-color: #ef4444 !important; color: white !important; box-shadow: 0 0 20px rgba(239, 68, 68, 0.4) !important; }
+        .blank-word { display: inline-block; min-width: 120px; border-bottom: 2px dashed #64748b; padding: 0 10px; text-align: center; color: transparent; cursor: pointer; transition: all 0.3s; position: relative; }
+        .blank-word::after { content: '?'; position: absolute; top: 0; left: 0; width: 100%; color: #64748b; font-style: italic; }
+        .blank-word.revealed { color: #2563eb; font-weight: bold; border-bottom-color: #2563eb; }
+        .blank-word.revealed::after { display: none; }
+        
+        /* Modal Transitions */
+        #exam-modal { transition: opacity 0.4s ease, visibility 0.4s ease; }
+        #exam-card { transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+        .modal-active #exam-modal { opacity: 1; visibility: visible; pointer-events: auto; }
+        .modal-active #exam-card { opacity: 1; transform: scale(1) translateY(0); }
+    </style>
+</head>
+<body>
+
+    <div class="blob blob-1"></div><div class="blob blob-2"></div>
+    <div class="bg-grid"></div>
+
+    <nav class="fixed bottom-8 right-8 z-50 flex items-center gap-4">
+        <span class="mono text-xs font-semibold text-slate-400 mr-2" id="slideCounter">01 / 19</span>
+        <button onclick="prevSlide()" class="nav-btn"><i data-lucide="arrow-left" width="20"></i></button>
+        <button onclick="nextSlide()" class="nav-btn" style="background: var(--ink); color: white;"><i data-lucide="arrow-right" width="20"></i></button>
+    </nav>
+    <div class="fixed bottom-0 left-0 w-full progress-track z-50"><div id="progress" class="progress-fill" style="width:0%"></div></div>
+
+    <section class="slide active" id="slide-0">
+        <div class="max-w-4xl w-full text-center flex flex-col items-center">
+            <div class="anim badge text-blue-600 mb-8"><i data-lucide="sparkles" width="16"></i> Masterclass IA</div>
+            <h1 class="anim d1 text-[5rem] md:text-[7rem] font-extrabold tracking-tight leading-none text-slate-900 mb-8">
+                L'Art du <span class="text-gradient">Prompt</span>
+            </h1>
+            <p class="anim d2 text-xl md:text-2xl text-slate-500 font-medium max-w-2xl leading-relaxed">
+                Comment transformer une simple intention en un résultat exploitable et professionnel.
+            </p>
+        </div>
+    </section>
+    <section class="slide" id="slide-definition">
+        <div class="max-w-4xl w-full text-center flex flex-col items-center">
+            <div class="anim badge text-indigo-600 mb-8"><i data-lucide="book-open" width="16"></i> Les Fondations</div>
+            <h2 class="anim d1 text-[4rem] md:text-[5rem] font-extrabold tracking-tight leading-none text-slate-900 mb-10">
+                C'est quoi un <span class="text-gradient">Prompt</span> ?
+            </h2>
+            
+            <p class="anim d2 text-xl text-slate-500 font-medium mb-12">
+                Comment définiriez-vous ce terme simplement ?
+            </p>
+
+            <div class="anim d3 w-full relative cursor-pointer" onclick="this.querySelector('#def-content').classList.remove('opacity-0', 'translate-y-8', 'scale-95'); this.querySelector('#def-hint').classList.add('opacity-0', 'scale-110');">
+                <div class="glass-strong p-12 w-full min-h-[300px] flex flex-col items-center justify-center relative overflow-hidden transition-transform hover:scale-[1.02]">
+                    
+                    <div id="def-hint" class="absolute inset-0 flex flex-col items-center justify-center transition-all duration-500">
+                        <div class="w-16 h-16 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center mb-4 shadow-inner">
+                            <i data-lucide="mouse-pointer-click" width="32" class="animate-bounce"></i>
+                        </div>
+                        <span class="font-bold text-slate-400 uppercase tracking-widest text-sm">Cliquez pour révéler la réponse</span>
+                    </div>
+
+                    <div id="def-content" class="opacity-0 translate-y-8 scale-95 transition-all duration-700 ease-out flex flex-col items-center w-full z-10">
+                        <i data-lucide="quote" class="text-blue-100 w-16 h-16 mb-4 absolute -top-8 -left-4 -z-10"></i>
+                        <p class="text-3xl text-slate-800 font-medium leading-relaxed relative z-10">
+                            C'est tout simplement le <strong class="text-blue-600">cahier des charges</strong> en langage naturel que vous transmettez à l'IA.
+                        </p>
+                        <div class="mt-6 text-slate-500 text-lg flex items-center gap-3">
+                            <i data-lucide="arrow-right" class="text-blue-400"></i>
+                            Une intention floue donne un résultat flou.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+        <section class="slide" id="slide-4">
+        <div class="max-w-5xl w-full flex flex-col md:flex-row items-center gap-16">
+            <div class="anim w-full md:w-1/2">
+                <h2 class="text-5xl font-bold mb-6 text-slate-900 leading-tight">La Règle des <span class="text-blue-600">80%</span></h2>
+                <p class="text-xl text-slate-600 leading-relaxed font-light mb-6">
+                    80% des réponses décevantes d'une IA proviennent d'un prompt incomplet ou mal structuré.
+                </p>
+                <p class="text-lg text-slate-500 leading-relaxed">
+                    Un modèle est comme un exécutant brillant : son travail dépend de la qualité de votre briefing.
+                </p>
+            </div>
+            <div class="anim d2 w-full md:w-1/2 flex justify-center">
+                <div class="glass-strong w-72 h-72 rounded-full flex flex-col items-center justify-center">
+                    <span class="text-7xl font-black text-slate-900">80<span class="text-blue-600">%</span></span>
+                    <span class="text-sm text-slate-500 font-bold uppercase tracking-widest mt-2">D'Erreur Humaine</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="slide" id="slide-3">
+        <div class="max-w-6xl w-full text-center">
+            <h2 class="anim text-4xl font-bold mb-16 text-slate-900">Dans la tête du modèle (ChatGPT, Claude etc.)</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="anim d1 glass-strong p-10 flex flex-col items-center text-center">
+                    <div class="w-16 h-16 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center mb-6"><i data-lucide="dice-5" width="32"></i></div>
+                    <h3 class="font-bold text-xl text-slate-900 mb-3">Probabilités</h3>
+                    <p class="text-sm text-slate-600 leading-relaxed">Il ne raisonne pas spontanément. Il calcule le mot le plus probable selon votre texte.</p>
+                </div>
+                <div class="anim d2 glass-strong p-10 flex flex-col items-center text-center">
+                    <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6"><i data-lucide="history" width="32"></i></div>
+                    <h3 class="font-bold text-xl text-slate-900 mb-3">Amnésie Native</h3>
+                    <p class="text-sm text-slate-600 leading-relaxed">Un modèle ne possède pas de mémoire permanente interne.</p>
+                </div>
+                <div class="anim d3 glass-strong p-10 flex flex-col items-center text-center">
+                    <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-6"><i data-lucide="database" width="32"></i></div>
+                    <h3 class="font-bold text-xl text-slate-900 mb-3">Biais des Données</h3>
+                    <p class="text-sm text-slate-600 leading-relaxed">Sans instruction stricte, il générera des réponses basés sur la moyenne d'internet.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="slide" id="slide-quiz-1">
+        <div class="max-w-5xl w-full text-center">
+            <div class="anim badge text-indigo-600 mb-8"><i data-lucide="help-circle" width="16"></i> Quiz Express</div>
+            <h2 class="anim d1 text-4xl font-bold mb-12 text-slate-900">Vrai ou Faux ?</h2>
+            
+            <div class="anim d2 glass-strong p-10 max-w-3xl mx-auto mb-8">
+                <p class="text-2xl text-slate-800 font-medium leading-relaxed">
+                    "Si je ne donne pas de contexte à l'IA, elle va chercher la meilleure réponse possible en fonction de ce qui est logique pour mon entreprise."
+                </p>
+            </div>
+
+            <div class="anim d3 flex justify-center gap-6">
+                <button onclick="handleVF(this, false)" class="vf-btn glass px-12 py-6 text-xl font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-3">
+                    <i data-lucide="x" width="24"></i> VRAI
+                </button>
+                <button onclick="handleVF(this, true)" class="vf-btn glass px-12 py-6 text-xl font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-3">
+                    <i data-lucide="check" width="24"></i> FAUX
+                </button>
+            </div>
+            
+            <div id="vf-feedback" class="mt-8 text-lg font-medium opacity-0 transition-opacity duration-300"></div>
+        </div>
+    </section>
+
+    <section class="slide" id="slide-5">
+        <div class="max-w-6xl w-full grid grid-cols-12 gap-12 items-center">
+            <div class="col-span-5 anim">
+                <div class="badge text-slate-900 mb-6">La Méthodologie</div>
+                <h2 class="text-4xl font-bold text-slate-900 leading-tight mb-6">L'Anatomie d'un Bon Prompt</h2>
+                <p class="text-lg text-slate-500">Structurer son intention autour de ces 5 piliers garantit une réponse professionnelle.</p>
+            </div>
+            
+            <div class="col-span-7 grid gap-4">
+                <div class="anim d1 glass-strong p-5 flex items-center gap-6">
+                    <div class="w-12 h-12 bg-slate-100 text-slate-900 rounded-xl flex items-center justify-center font-bold text-xl shrink-0">R</div>
+                    <div><h4 class="font-bold text-slate-900">Rôle</h4><p class="text-sm text-slate-500">À qui vous adressez-vous ? (Expert, Développeur...)</p></div>
+                </div>
+                <div class="anim d2 glass-strong p-5 flex items-center gap-6">
+                    <div class="w-12 h-12 bg-slate-100 text-slate-900 rounded-xl flex items-center justify-center font-bold text-xl shrink-0">O</div>
+                    <div><h4 class="font-bold text-slate-900">Objectif</h4><p class="text-sm text-slate-500">La tâche exacte à accomplir.</p></div>
+                </div>
+                <div class="anim d3 glass-strong p-5 flex items-center gap-6">
+                    <div class="w-12 h-12 bg-slate-100 text-slate-900 rounded-xl flex items-center justify-center font-bold text-xl shrink-0">C</div>
+                    <div><h4 class="font-bold text-slate-900">Contexte</h4><p class="text-sm text-slate-500">La situation, la cible, l'entreprise.</p></div>
+                </div>
+                <div class="anim d4 glass-strong p-5 flex items-center gap-6">
+                    <div class="w-12 h-12 bg-slate-100 text-slate-900 rounded-xl flex items-center justify-center font-bold text-xl shrink-0">E</div>
+                    <div><h4 class="font-bold text-slate-900">Exemples</h4><p class="text-sm text-slate-500">Un modèle concret de ce qui est attendu.</p></div>
+                </div>
+                <div class="anim d5 glass-strong p-5 flex items-center gap-6">
+                    <div class="w-12 h-12 bg-slate-100 text-slate-900 rounded-xl flex items-center justify-center font-bold text-xl shrink-0">F</div>
+                    <div><h4 class="font-bold text-slate-900">Format</h4><p class="text-sm text-slate-500">Structure de sortie (Email, Liste, Tableau...).</p></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="slide" id="slide-quiz-2">
+        <div class="max-w-5xl w-full text-center">
+            <div class="anim badge text-indigo-600 mb-8"><i data-lucide="edit-2" width="16"></i> À vous de compléter</div>
+            <h2 class="anim d1 text-4xl font-bold mb-12 text-slate-900">Associez les mots</h2>
+            
+            <div class="anim d2 glass-strong p-10 max-w-4xl mx-auto text-left text-2xl text-slate-700 leading-[2.5]">
+                "Quand j'écris un prompt je ne me contente pas de donner un <span class="blank-word" onclick="revealWord(this, 'Objectif')"></span>. 
+                Il faut absolument préciser le <span class="blank-word" onclick="revealWord(this, 'Contexte')"></span> pour éviter que l'IA ne génère une réponse bateau. 
+                Enfin, imposer un <span class="blank-word" onclick="revealWord(this, 'Format')"></span> permet d'obtenir un résultat directement exploitable (ex: tableau, bullet points)."
+            </div>
+            <p class="anim d3 mt-8 text-sm text-slate-400 italic">Cliquez sur les zones pointillées pour révéler la réponse à l'oral.</p>
+        </div>
+    </section>
+
+    <section class="slide" id="slide-6">
+        <div class="max-w-5xl w-full">
+            <h2 class="anim text-center text-4xl font-bold mb-12 text-slate-900">4 Pièges à Éviter</h2>
+            <div class="grid grid-cols-2 gap-8">
+                <div class="anim d1 glass-strong p-8 hover:-translate-y-1 transition-transform">
+                    <div class="flex items-center gap-3 mb-3 text-slate-900 font-bold"><i data-lucide="x-circle" class="text-red-500"></i> Intention Vague</div>
+                    <p class="text-lg text-slate-500">Donnera des résultats clichés, remplis d'emojis et de généralités.</p>
+                </div>
+                <div class="anim d2 glass-strong p-8 hover:-translate-y-1 transition-transform">
+                    <div class="flex items-center gap-3 mb-3 text-slate-900 font-bold"><i data-lucide="x-circle" class="text-red-500"></i> Zéro Format</div>
+                    <p class="text-lg text-slate-500">L'IA rédigera des pavés de texte indigestes sans aération.</p>
+                </div>
+                <div class="anim d3 glass-strong p-8 hover:-translate-y-1 transition-transform">
+                    <div class="flex items-center gap-3 mb-3 text-slate-900 font-bold"><i data-lucide="x-circle" class="text-red-500"></i> Demandes Multiples</div>
+                    <p class="text-lg text-slate-500">Poser plusieurs questions dans le même paragraphe brouille l'objectif.</p>
+                </div>
+                <div class="anim d4 glass-strong p-8 hover:-translate-y-1 transition-transform">
+                    <div class="flex items-center gap-3 mb-3 text-slate-900 font-bold"><i data-lucide="x-circle" class="text-red-500"></i> Oubli du Contexte</div>
+                    <p class="text-lg text-slate-500">Ne pas préciser la cible ou le ton rend la réponse inexploitable.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="slide" id="slide-7">
+        <div class="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 gap-10">
+            <div class="anim flex flex-col justify-center">
+                <div class="badge text-indigo-600 mb-6 w-fit"><i data-lucide="edit-3" width="16"></i> Mini-Exercice</div>
+                <h2 class="text-4xl font-bold text-slate-900 mb-6 leading-tight">Corrigeons ce prompt</h2>
+                <p class="text-slate-500 text-lg mb-8">Ce prompt commet toutes les erreurs. Comment l'améliorer ensemble ?</p>
+                
+                <div class="glass p-6 mb-8 relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-1 h-full bg-red-00"></div>
+                    <span class="text-xs font-bold text-red-500 uppercase tracking-widest mb-2 block">Prompt Original</span>
+                    <p class="text-xl font-mono text-slate-800">"Écris un post VivaEngage sur l'IA."</p>
+                </div>
+
+                <button onclick="revealCorrection()" class="w-full glass-dark text-white p-4 font-bold hover:scale-[1.02] transition-transform flex justify-center items-center gap-2">
+                    <i data-lucide="sparkles" width="18"></i> Révéler la correction
+                </button>
+            </div>
+            
+            <div class="anim d2 glass-strong p-8 flex flex-col justify-center relative overflow-hidden">
+                <div class="space-y-4 transition-opacity duration-300" id="rocef-hints">
+                    <div class="flex items-start gap-4"><div class="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-slate-400">R</div><div class="flex-1 border-b border-slate-100 pb-3"><span class="text-slate-400 italic">Quel rôle ? (ex: Expert Tech...)</span></div></div>
+                    <div class="flex items-start gap-4"><div class="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-slate-400">O</div><div class="flex-1 border-b border-slate-100 pb-3"><span class="text-slate-400 italic">Quel but ? (ex: Démystifier l'IA...)</span></div></div>
+                    <div class="flex items-start gap-4"><div class="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-slate-400">C</div><div class="flex-1 border-b border-slate-100 pb-3"><span class="text-slate-400 italic">Quel contexte/cible ? (ex: RH...)</span></div></div>
+                    <div class="flex items-start gap-4"><div class="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-slate-400">F</div><div class="flex-1 border-b border-slate-100 pb-3"><span class="text-slate-400 italic">Quel format ? (ex: 3 bullets...)</span></div></div>
+                </div>
+
+                <div id="corrected-prompt" class="opacity-0 invisible absolute inset-0 m-6 glass-dark p-8 flex flex-col justify-center transition-all duration-500">
+                    <span class="text-emerald-400 text-xs font-bold uppercase tracking-widest mb-4 block"><i data-lucide="check-circle" width="14" class="inline mb-0.5"></i> Prompt Corrigé</span>
+                    <p class="text-[0.9rem] text-slate-300 font-mono leading-relaxed space-y-2">
+                        <span class="text-blue-400 block"><strong class="text-white">Rôle :</strong> Agis comme un expert en IA pour les entreprises.</span>
+                        <span class="text-indigo-400 block"><strong class="text-white">Objectif :</strong> Rédige un post Viva Engage pour démystifier l'IA générative.</span>
+                        <span class="text-purple-400 block"><strong class="text-white">Contexte :</strong> Les cibles sont les personnes qui ont peur de l'IA. Rassure-les avec pédagogie.</span>
+                        <span class="text-emerald-400 block"><strong class="text-white">Format :</strong> Accroche percutante, 3 puces concrètes, appel à l'action. Ton pro.</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="slide" id="slide-8-iter">
+        <div class="max-w-5xl w-full text-center">
+            <h2 class="anim text-6xl font-bold mb-16 text-slate-900">Affinez le prompt</h2>
+            <div class="flex flex-col md:flex-row items-center justify-center gap-4">
+                <div class="anim d1 glass p-8 w-64 flex flex-col items-center">
+                    <h4 class="font-bold text-slate-500 mb-2">V1</h4>
+                    <p class="text-xs text-slate-400">Générique</p>
+                </div>
+                <i data-lucide="arrow-right" class="text-slate-300 anim d2"></i>
+                <div class="anim d3 glass-strong p-8 w-72 flex flex-col items-center transform scale-105">
+                    <h4 class="font-bold text-slate-900 mb-2">Feedback</h4>
+                    <p class="text-xs text-slate-600 font-mono">"Raccourcis, ton direct."</p>
+                </div>
+                <i data-lucide="arrow-right" class="text-slate-300 anim d4"></i>
+                <div class="anim d5 glass-strong p-8 w-64 flex flex-col items-center">
+                    <h4 class="font-bold text-blue-600 mb-2">V2</h4>
+                    <p class="text-xs text-slate-600">Exploitable</p>
+                </div>
+            </div>
+            <p class="anim d6 mt-16 text-lg text-slate-500 font-medium">Ne vous contentez jamais du premier jet. Affinez-le.</p>
+        </div>
+    </section>
+
+    <section class="slide" id="slide-9">
+        <div class="max-w-5xl w-full grid grid-cols-2 gap-12 items-center">
+            <div class="anim">
+                <h2 class="text-4xl font-bold text-slate-900 mb-6">Raisonner par Étapes</h2>
+                <p class="text-lg text-slate-600 mb-8 leading-relaxed">Pour les tâches logiques, forcez l'IA à décomposer son raisonnement avant de donner la solution.</p>
+                <div class="glass-strong p-6 text-blue-700 font-mono text-sm font-bold">
+                    "Explique ton raisonnement étape par étape."
+                </div>
+            </div>
+            <div class="anim d2 glass-strong p-8 space-y-4">
+                <div class="flex items-center gap-4 p-3 bg-slate-50 rounded-xl"><div class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 font-bold flex items-center justify-center text-sm">1</div><p class="text-sm text-slate-700">Analyse du problème</p></div>
+                <div class="flex items-center gap-4 p-3 bg-slate-50 rounded-xl"><div class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 font-bold flex items-center justify-center text-sm">2</div><p class="text-sm text-slate-700">Déduction logique</p></div>
+                <div class="flex items-center gap-4 p-3 bg-blue-50 rounded-xl"><div class="w-8 h-8 rounded-full bg-blue-500 text-white font-bold flex items-center justify-center text-sm"><i data-lucide="check" width="14"></i></div><p class="text-sm font-bold text-blue-800">Réponse finale précise</p></div>
+            </div>
+        </div>
+    </section>
+    <section class="slide">
+        <div class="max-w-5xl w-full text-center">
+            <h2 class="anim d1 text-4xl font-bold mb-8 text-slate-900">Le syndrome de l'Amnésie</h2>
+            <div class="anim d2 glass-strong p-8 max-w-4xl text-center shadow-md mx-auto">
+                <p class="text-base text-slate-600 mb-6">Quand vous collez un texte très long (ex: 10 pages), l'IA retient bien le début et la fin, mais oublie très souvent le milieu.</p>
+                
+                <div class="flex w-full h-10 rounded-xl overflow-hidden mb-8 text-white font-bold text-xs shadow-sm">
+                    <div class="w-1/4 bg-emerald-500 flex items-center justify-center">Lu & Retenu</div>
+                    <div class="w-2/4 bg-red-400 flex items-center justify-center">Oublié / Ignoré</div>
+                    <div class="w-1/4 bg-emerald-500 flex items-center justify-center">Lu & Retenu</div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-inner">
+                        <h4 class="font-bold text-xs text-slate-400 uppercase tracking-wider mb-3">Comment l'IA lit votre prompt :</h4>
+                        <div class="text-sm font-mono space-y-2">
+                            <p class="text-emerald-700 font-bold bg-emerald-100/50 p-1.5 rounded">1. "Tu es recruteur expert..." <span class="text-[10px] text-emerald-800 ml-1">(Retenu)</span></p>
+                            <p class="text-slate-500 bg-white p-1.5 rounded border border-slate-100">2. [Texte de 5 pages de CV]</p>
+                            <p class="text-red-500 line-through bg-red-50 p-1.5 rounded border border-red-100">3. "Exclus les profils juniors." <span class="text-[10px] text-red-800 ml-1">(Oublié)</span></p>
+                            <p class="text-slate-500 bg-white p-1.5 rounded border border-slate-100">4. [Texte de 5 pages de CV suite]</p>
+                            <p class="text-emerald-700 font-bold bg-emerald-100/50 p-1.5 rounded">5. "Fais un tableau." <span class="text-[10px] text-emerald-800 ml-1">(Retenu)</span></p>
+                        </div>
+                    </div>
+                    <div class="bg-blue-50 p-6 rounded-xl border border-blue-100 flex flex-col justify-center text-center">
+                        <h4 class="font-black text-blue-900 text-lg mb-3">La Solution</h4>
+                        <p class="text-sm text-blue-800 leading-relaxed font-medium">
+                            Placez toujours vos instructions d'action ("Fais un tableau", "Exclus ceci") <strong>TOUT À LA FIN</strong> de votre prompt, <em>après</em> le long texte collé.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="slide" id="slide-11">
+        <div class="max-w-5xl w-full">
+            <div class="anim badge text-amber-600 mb-8 mx-auto flex w-fit"><i data-lucide="trophy" width="16"></i> Prompt Challenge</div>
+            <div class="grid grid-cols-2 gap-10">
+                <div class="anim d1 glass-strong p-10 flex flex-col justify-center">
+                    <h3 class="text-2xl font-bold text-slate-900 mb-4">Gestion de crise</h3>
+                    <p class="text-slate-600 leading-relaxed mb-6">M. Jean Dupont (Client VIP depuis 3 ans) a reçu sa machine à café à 800€ détruite. Il menace de boycotter sur Twitter.</p>
+                    <div class="bg-slate-50 p-4 rounded-xl">
+                        <span class="text-xs font-bold text-slate-500 uppercase mb-2 block">Objectif : Sauver le client</span>
+                        <ul class="text-sm text-slate-700 space-y-2 font-medium">
+                            <li>• Assumer à 100% (Ne pas blâmer le livreur)</li>
+                            <li>• Remboursement intégral immédiat</li>
+                            <li>• Code Promo -20% (VIP-EXCUSE-20)</li>
+                            <li>• Max 150 mots</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="anim d2 glass p-10 flex flex-col justify-center items-center text-center">
+                    <i data-lucide="timer" class="text-slate-400 w-16 h-16 mb-6"></i>
+                    <h3 class="text-4xl font-black text-slate-900 mb-2">5 Minutes</h3>
+                    <p class="text-slate-500">Générez le meilleur prompt possible.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="slide" id="slide-12">
+        <div class="max-w-7xl w-full grid grid-cols-1 md:grid-cols-2 gap-10 h-[75vh]">
+            
+            <div class="anim glass-strong p-10 flex flex-col overflow-y-auto relative">
+                <div class="badge text-amber-600 bg-amber-50 mb-8 w-fit shadow-sm"><i data-lucide="key" width="16"></i> Le Master Prompt</div>
+                
+                <div class="space-y-6 text-sm text-slate-600 leading-relaxed pr-4">
+                    <div class="flex items-start gap-4">
+                        <div class="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold shrink-0 shadow-inner">R</div>
+                        <p><strong class="text-slate-900 block mb-1">Rôle</strong> Directeur Relation Client senior, réputé pour son empathie.</p>
+                    </div>
+                    
+                    <div class="flex items-start gap-4">
+                        <div class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold shrink-0 shadow-inner">O</div>
+                        <p><strong class="text-slate-900 block mb-1">Objectif</strong> Rédiger un email pour désamorcer la crise client suite au colis détruit.</p>
+                    </div>
+                    
+                    <div class="flex items-start gap-4">
+                        <div class="w-8 h-8 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center font-bold shrink-0 shadow-inner">C</div>
+                        <p><strong class="text-slate-900 block mb-1">Contexte</strong> M. Dupont est VIP depuis 3 ans et menace de nous boycotter. On doit assumer à 100% (ne pas blâmer le transporteur), annoncer un remboursement de 800€ et offrir le code VIP-EXCUSE-20.</p>
+                    </div>
+                    
+                    <div class="flex items-start gap-4">
+                        <div class="w-8 h-8 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center font-bold shrink-0 shadow-inner">E</div>
+                        <p><strong class="text-slate-900 block mb-1">Exemples</strong> <span class="italic">"Exemple de ton attendu : 'En tant que client fidèle, vous attendez l'excellence de notre part, et nous avons failli à cette promesse.'"</span></p>
+                    </div>
+                    
+                    <div class="flex items-start gap-4">
+                        <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold shrink-0 shadow-inner">F</div>
+                        <p><strong class="text-slate-900 block mb-1">Format</strong> Email structuré. Max 150 mots. Ton très chaleureux et humble.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="anim d2 glass-dark p-10 flex flex-col relative">
+                <div class="absolute top-6 right-6 badge text-emerald-500 bg-emerald-500/10 text-[10px] shadow-lg border border-emerald-500/20"><i data-lucide="check-circle" width="14"></i> Résultat IA</div>
+                
+                <div class="border-b border-slate-700 pb-4 mb-6 mt-4">
+                    <span class="text-slate-400 text-[10px] uppercase tracking-widest font-bold block mb-1">Objet</span>
+                    <span class="text-white font-medium text-lg">Sincères excuses – Remboursement immédiat</span>
+                </div>
+                
+                <div class="text-slate-300 text-[0.95rem] leading-relaxed overflow-y-auto pr-4">
+                    <p class="mb-4">Bonjour Monsieur Dupont,</p>
+                    <p class="mb-4">Je vous écris personnellement suite à la réception de votre machine endommagée. En tant que client fidèle, vous êtes en droit d'attendre l'excellence de notre part, et nous avons failli. Je vous présente mes plus sincères excuses.</p>
+                    <p class="mb-4">Nous assumons l'entière responsabilité de cet incident. J'ai immédiatement déclenché le remboursement intégral (800€), visible d'ici 48h sur votre compte.</p>
+                    <p class="mb-4">Votre confiance nous est précieuse. Pour vous le prouver, j'ai créé le code personnel <strong class="text-emerald-400 font-mono bg-emerald-400/10 px-1.5 py-0.5 rounded">VIP-EXCUSE-20</strong> vous offrant 20% de remise sur votre prochaine commande.</p>
+                    <p>Bien à vous,</p>
+                </div>
+            </div>
+            
+        </div>
+    </section>
+
+    <section class="slide" id="slide-13">
+        <div class="max-w-5xl w-full">
+            <h2 class="anim text-center text-4xl font-bold mb-12 text-slate-900">3 Règles d'Or</h2>
+            <div class="grid grid-cols-3 gap-8">
+                <div class="anim d1 glass-strong p-8 flex flex-col text-center items-center">
+                    <div class="w-12 h-12 bg-slate-100 text-slate-900 rounded-full flex items-center justify-center font-bold text-xl mb-4">1</div>
+                    <h3 class="font-bold text-slate-900 mb-2">Clarté Absolue</h3>
+                    <p class="text-sm text-slate-600">Le modèle n'invente pas le contexte. Soyez explicite (ROCEF).</p>
+                </div>
+                <div class="anim d2 glass-strong p-8 flex flex-col text-center items-center">
+                    <div class="w-12 h-12 bg-slate-100 text-slate-900 rounded-full flex items-center justify-center font-bold text-xl mb-4">2</div>
+                    <h3 class="font-bold text-slate-900 mb-2">Itération</h3>
+                    <p class="text-sm text-slate-600">Le premier jet est un brouillon. Affinez avec des feedbacks précis.</p>
+                </div>
+                <div class="anim d3 glass-strong p-8 flex flex-col text-center items-center">
+                    <div class="w-12 h-12 bg-slate-100 text-slate-900 rounded-full flex items-center justify-center font-bold text-xl mb-4">3</div>
+                    <h3 class="font-bold text-slate-900 mb-2">Logique</h3>
+                    <p class="text-sm text-slate-600">Forcez le pas-à-pas et séparez vos données des consignes.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="slide" id="slide-15">
+        <div class="max-w-4xl w-full text-center">
+            <div class="anim badge text-red-600 bg-red-50 mb-6"><i data-lucide="alert-triangle" width="16"></i> Test Final</div>
+            <h2 class="anim d1 text-5xl font-black mb-8 text-slate-900">L'Ultime Épreuve</h2>
+            <p class="anim d2 text-xl text-slate-600 mb-10 font-medium">
+                Pensez-vous vraiment avoir compris les rouages de l'IA ?<br>Voici 5 questions pièges pour valider vos acquis.
+            </p>
+            <div class="anim d3">
+                <button onclick="openExam()" class="px-10 py-5 glass-dark text-white text-lg rounded-2xl font-bold hover:scale-105 transition-transform flex items-center gap-3 mx-auto shadow-xl">
+                    Lancer l'évaluation <i data-lucide="arrow-right" width="20"></i>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <section class="slide" id="slide-16">
+        <div class="max-w-4xl text-center">
+            <h2 class="anim d1 text-5xl md:text-6xl font-black mb-8 text-slate-900">La Prochaine Étape</h2>
+            <p class="anim d2 text-xl text-slate-600 mb-12 font-medium">Vous savez parler à l'IA.<br>Il est temps de la faire agir de manière autonome.</p>
+            <div class="anim d3 flex justify-center items-center gap-6">
+                <button onclick="goToSlide(0)" class="px-8 py-4 bg-white text-slate-900 rounded-2xl font-bold hover:bg-slate-50 transition shadow-lg border border-transparent">
+                    Revoir la méthode
+                </button>
+                <button class="px-8 py-4 glass-dark text-white rounded-2xl font-bold hover:scale-105 transition-transform flex items-center gap-3">
+                    Créer son Agent IA <i data-lucide="arrow-right" width="18"></i>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <div id="exam-modal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-xl" onclick="closeExam()"></div>
+        <div class="glass-dark w-full max-w-3xl p-10 md:p-14 relative z-10 opacity-0" id="exam-card">
+            
+            <button onclick="closeExam()" class="absolute top-6 right-6 text-slate-400 hover:text-white"><i data-lucide="x" width="24"></i></button>
+
+            <div id="exam-content" class="min-h-[250px] flex flex-col justify-center">
+                </div>
+            
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+        lucide.createIcons();
+
+        // --- SLIDE ENGINE ---
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        const progressBar = document.getElementById('progress');
+        const counter = document.getElementById('slideCounter');
+        let currentSlide = 0;
+        let thinkingTimeouts = [];
+        let activeIntervals = [];
+
+        function clearSimulations() {
+            thinkingTimeouts.forEach(id => clearTimeout(id)); thinkingTimeouts = [];
+            activeIntervals.forEach(id => clearInterval(id)); activeIntervals = [];
+            const scanLine = document.getElementById('scan-line');
+            if(scanLine) scanLine.style.opacity = '0';
+            
+            // Reset Reveal Exercise
+            const hints = document.getElementById('rocef-hints');
+            const corrected = document.getElementById('corrected-prompt');
+            if (hints && corrected) {
+                hints.classList.remove('fade-out');
+                corrected.classList.remove('fade-in');
+            }
+
+            // Reset VF Quiz
+            document.querySelectorAll('.vf-btn').forEach(btn => {
+                btn.classList.remove('selected-correct', 'selected-wrong');
+            });
+            const vfFeedback = document.getElementById('vf-feedback');
+            if(vfFeedback) { vfFeedback.style.opacity = '0'; vfFeedback.innerHTML = ''; }
+
+            // Reset Fill Blanks
+            document.querySelectorAll('.blank-word').forEach(word => {
+                word.classList.remove('revealed');
+                word.textContent = '';
+            });
+
+            // Close modal if open
+            closeExam();
+        }
+
+        function updateSlide() {
+            clearSimulations();
+            slides.forEach((slide, i) => { slide.classList.toggle('active', i === currentSlide); });
+            const pct = ((currentSlide + 1) / totalSlides) * 100;
+            progressBar.style.width = pct + '%';
+            counter.textContent = String(currentSlide + 1).padStart(2, '0') + ' / ' + String(totalSlides).padStart(2, '0');
+
+            if (currentSlide === 2) initPromptSim(); 
+            if (currentSlide === 12) startScanAnim(); 
+        }
+
+        function nextSlide() { if (currentSlide < totalSlides - 1) { currentSlide++; updateSlide(); } }
+        function prevSlide() { if (currentSlide > 0) { currentSlide--; updateSlide(); } }
+        function goToSlide(n) { currentSlide = n; updateSlide(); }
+
+        window.nextSlide = nextSlide; window.prevSlide = prevSlide; window.goToSlide = goToSlide;
+
+        document.addEventListener('keydown', (e) => {
+            // Ignore key events if modal is open
+            if(document.body.classList.contains('modal-active')) return;
+            if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextSlide(); }
+            if (e.key === 'ArrowLeft') { e.preventDefault(); prevSlide(); }
+        });
+
+        // --- SIM 1: CHAT ---
+        function addMsg(text, type, isBad = false) {
+            const container = document.getElementById('chat-sim-container');
+            if(!container) return;
+            const d = document.createElement('div');
+            let baseClass = type === 'user' ? 'chat-user' : (isBad ? 'chat-ai chat-ai-bad' : 'chat-ai');
+            d.className = 'chat-bubble ' + baseClass;
+            d.innerHTML = text;
+            container.appendChild(d);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function initPromptSim() {
+            const container = document.getElementById('chat-sim-container');
+            if(container) container.innerHTML = '<div class="text-center text-slate-400 text-sm italic w-full">Sélectionnez un prompt à gauche...</div>';
+        }
+
+        window.runBadPrompt = function() {
+            const container = document.getElementById('chat-sim-container');
+            container.innerHTML = '';
+            addMsg("Fais un mail pour le retard.", "user");
+            let t = setTimeout(() => { addMsg("Bonjour,<br>Je vous informe que nous avons du retard sur le projet.<br>Cordialement.", "ai", true); }, 800);
+            thinkingTimeouts.push(t);
+        }
+
+        window.runGoodPrompt = function() {
+            const container = document.getElementById('chat-sim-container');
+            container.innerHTML = '';
+            addMsg("Agis comme un chef de projet. Mail pro client B2B. Annonce 2 semaines de retard. Propose un point mardi.", "user");
+            let t = setTimeout(() => { addMsg("Cher client,<br>La qualité étant notre priorité, nous prolongeons nos tests. La livraison est décalée de 2 semaines.<br>Je vous propose un point de synchronisation mardi.<br>Cordialement.", "ai"); }, 1200);
+            thinkingTimeouts.push(t);
+        }
+
+        // --- SIM 2: SCANNER ---
+        function startScanAnim() {
+            const scanLine = document.getElementById('scan-line');
+            if(!scanLine) return;
+            scanLine.style.opacity = '1';
+            let pos = 0; let direction = 1;
+            const id = setInterval(() => {
+                pos += 1.5 * direction;
+                if(pos > 98) direction = -1;
+                if(pos < 0) direction = 1;
+                scanLine.style.top = pos + '%';
+            }, 30);
+            activeIntervals.push(id);
+        }
+
+        // --- SIM 3: REVEAL CORRECTION ---
+        window.revealCorrection = function() {
+            const hints = document.getElementById('rocef-hints');
+            const corrected = document.getElementById('corrected-prompt');
+            if (hints && corrected) {
+                hints.classList.add('fade-out');
+                setTimeout(() => {
+                    corrected.classList.add('fade-in');
+                }, 300);
+            }
+        }
+
+        // --- INTERACTION: QUIZ V/F SIMPLE ---
+        window.handleVF = function(btn, isTrueButton) {
+            document.querySelectorAll('.vf-btn').forEach(b => b.classList.remove('selected-correct', 'selected-wrong'));
+            const feedback = document.getElementById('vf-feedback');
+            
+            if (isTrueButton) { // Réponse Faux attendue
+                btn.classList.add('selected-correct');
+                feedback.innerHTML = '<span class="text-emerald-500 flex items-center justify-center gap-2"><i data-lucide="check-circle" width="20"></i> Exact ! Sans contexte explicite, l\'IA invente ou donne des généralités.</span>';
+            } else {
+                btn.classList.add('selected-wrong');
+                feedback.innerHTML = '<span class="text-red-500 flex items-center justify-center gap-2"><i data-lucide="alert-triangle" width="20"></i> Raté ! L\'IA n\'a aucune idée de qui vous êtes si vous ne lui dites pas.</span>';
+            }
+            lucide.createIcons();
+            feedback.style.opacity = '1';
+        }
+
+        // --- INTERACTION: TEXTE A TROUS ---
+        window.revealWord = function(element, word) {
+            element.textContent = word;
+            element.classList.add('revealed');
+        }
+
+        // --- MODAL: L'ULTIME EPREUVE ---
+        const examQuestions = [
+            {
+                q: "Dire à l'IA 'Surtout, ne sois pas trop familier' est la meilleure façon d'obtenir un ton professionnel.",
+                a: false,
+                exp: "Faux. Les LLM gèrent très mal la négation (prompting négatif). Il faut toujours affirmer ce qu'on veut : 'Adopte un ton strictement formel'."
+            },
+            {
+                q: "Pour générer du code complexe sans bug, il faut régler la Température de l'IA à 1.0 pour maximiser son intelligence.",
+                a: false,
+                exp: "Faux. La température contrôle l'aléatoire, pas l'intelligence. Pour du code ou de la logique stricte, une température proche de 0 est indispensable."
+            },
+            {
+                q: "Plus votre prompt est long (ex: 4000 mots), plus l'IA sera précise sur l'ensemble de votre demande.",
+                a: false,
+                exp: "Faux. Phénomène de 'Lost in the middle' : l'IA oublie souvent les instructions placées au milieu d'un long texte. La concision prime toujours."
+            },
+            {
+                q: "Ajouter 'Explique ton raisonnement étape par étape' améliore systématiquement les résultats, même pour écrire un poème créatif.",
+                a: false,
+                exp: "Faux. C'est puissant pour la logique/maths (Chain of Thought), mais souvent désastreux pour la créativité, car cela force l'IA dans un carcan rigide."
+            },
+            {
+                q: "Une IA (LLM) comprend le sens des mots que vous tapez, un peu comme un jeune enfant très cultivé.",
+                a: false,
+                exp: "Faux. L'IA n'a aucune compréhension sémantique ni conscience. Elle calcule uniquement des probabilités statistiques de co-occurrence de 'tokens'."
+            }
+        ];
+        
+        let currentExamQ = 0;
+        let examScore = 0;
+
+        window.openExam = function() {
+            document.body.classList.add('modal-active');
+            currentExamQ = 0;
+            examScore = 0;
+            renderExamQuestion();
+        }
+
+        window.closeExam = function() {
+            document.body.classList.remove('modal-active');
+        }
+
+        window.renderExamQuestion = function() {
+            const container = document.getElementById('exam-content');
+            if(currentExamQ >= examQuestions.length) {
+                // Score Screen
+                let msg = examScore >= 4 ? "Félicitations, vous maîtrisez la machine !" : "Encore un peu d'entraînement...";
+                container.innerHTML = `
+                    <div class="text-center fade-in">
+                        <h3 class="text-4xl font-bold text-white mb-4">Test Terminé</h3>
+                        <div class="text-6xl font-black ${examScore >= 4 ? 'text-emerald-400' : 'text-amber-400'} mb-6">${examScore} / 5</div>
+                        <p class="text-slate-300 text-lg mb-10">${msg}</p>
+                        <button onclick="closeExam()" class="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-500 transition">Terminer la Masterclass</button>
+                    </div>
+                `;
+                return;
+            }
+
+            const q = examQuestions[currentExamQ];
+            container.innerHTML = `
+                <div class="fade-in">
+                    <span class="text-blue-400 font-bold uppercase tracking-widest text-xs mb-4 block">Question ${currentExamQ + 1} / 5</span>
+                    <p class="text-2xl text-white font-medium leading-relaxed mb-10">"${q.q}"</p>
+                    <div class="flex gap-4" id="exam-choices">
+                        <button onclick="answerExam(true)" class="flex-1 glass py-4 text-white font-bold hover:bg-white/10 transition rounded-xl">VRAI</button>
+                        <button onclick="answerExam(false)" class="flex-1 glass py-4 text-white font-bold hover:bg-white/10 transition rounded-xl">FAUX</button>
+                    </div>
+                    <div id="exam-feedback" class="mt-6 hidden"></div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        window.answerExam = function(userAnswer) {
+            const q = examQuestions[currentExamQ];
+            const isCorrect = (userAnswer === q.a);
+            if(isCorrect) examScore++;
+
+            const choices = document.getElementById('exam-choices');
+            choices.classList.add('opacity-50', 'pointer-events-none');
+
+            const feedback = document.getElementById('exam-feedback');
+            feedback.classList.remove('hidden');
+            feedback.classList.add('fade-in');
+            
+            let icon = isCorrect ? '<i data-lucide="check-circle" class="text-emerald-400"></i>' : '<i data-lucide="x-circle" class="text-red-400"></i>';
+            let title = isCorrect ? '<span class="text-emerald-400 font-bold">Bonne réponse !</span>' : '<span class="text-red-400 font-bold">Piège !</span>';
+
+            feedback.innerHTML = `
+                <div class="bg-slate-800/80 p-6 rounded-xl border border-slate-700">
+                    <div class="flex items-center gap-3 mb-2 text-lg">${icon} ${title}</div>
+                    <p class="text-slate-300 text-sm leading-relaxed">${q.exp}</p>
+                    <button onclick="nextExamQ()" class="mt-6 w-full py-3 bg-white text-slate-900 font-bold rounded-lg hover:bg-slate-200 transition">Question Suivante</button>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        window.nextExamQ = function() {
+            currentExamQ++;
+            renderExamQuestion();
+        }
+
+        // --- INIT ---
+        updateSlide();
+    })();
+    </script>
+</body>
+</html>
